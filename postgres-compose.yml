@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  # PostgreSQL for shared storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: context-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=context_manager
+      - POSTGRES_USER=context_user
+      - POSTGRES_PASSWORD=context_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U context_user -d context_manager"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Context Manager Instance 1
+  context-manager-1:
+    build: .
+    container_name: context-manager-1
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://context_user:context_pass@postgres:5432/context_manager
+      - STORAGE_TYPE=postgresql
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Context Manager Instance 2
+  context-manager-2:
+    build: .
+    container_name: context-manager-2
+    ports:
+      - "8002:8000"
+    environment:
+      - DATABASE_URL=postgresql://context_user:context_pass@postgres:5432/context_manager
+      - STORAGE_TYPE=postgresql
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local

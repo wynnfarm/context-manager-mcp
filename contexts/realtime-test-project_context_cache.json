@@ -1,0 +1,23 @@
+{
+  "project_name": "realtime-test-project",
+  "current_goal": "Deploy real-time context manager to production",
+  "completed_features": [
+    "Real-time collaboration features"
+  ],
+  "current_issues": [
+    {
+      "problem": "Need to add authentication to WebSocket connections",
+      "location": "",
+      "root_cause": "",
+      "status": "open",
+      "created_at": "2025-09-01T12:43:57.960829"
+    }
+  ],
+  "next_steps": [
+    "Implement JWT token validation for WebSocket connections"
+  ],
+  "current_state": {},
+  "key_files": [],
+  "context_anchors": [],
+  "last_updated": "2025-09-01T12:43:57.961412"
+}

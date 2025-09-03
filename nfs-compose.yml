@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  # Context Manager Instance 1
+  context-manager-1:
+    build: .
+    container_name: context-manager-1
+    ports:
+      - "8001:8000"
+    volumes:
+      - nfs_contexts:/app/contexts # NFS volume
+    environment:
+      - CONTEXT_STORAGE_PATH=/app/contexts
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  # Context Manager Instance 2
+  context-manager-2:
+    build: .
+    container_name: context-manager-2
+    ports:
+      - "8002:8000"
+    volumes:
+      - nfs_contexts:/app/contexts # Same NFS volume
+    environment:
+      - CONTEXT_STORAGE_PATH=/app/contexts
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+volumes:
+  nfs_contexts:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.1.100,rw,nfsvers=4
+      device: ":/shared/contexts"

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enhanced Context Manager Analytics Dashboard</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>"
+    />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    <style>
+      /* Enhanced animations and transitions */
+      .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Enhanced hover effects */
+      .hover\:bg-gray-50:hover {
+        background-color: #f9fafb;
+      }
+
+      .hover\:bg-blue-700:hover {
+        background-color: #1d4ed8;
+      }
+
+      /* Enhanced transitions */
+      .transition-colors {
+        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 150ms;
+      }
+
+      /* Enhanced focus states */
+      .focus\:outline-none:focus {
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+      }
+
+      .focus\:ring-2:focus {
+        --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+        --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+        box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+      }
+
+      .focus\:ring-blue-500:focus {
+        --tw-ring-color: #3b82f6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Enhanced React App -->
+    <script type="text/babel" src="/static/dashboard-enhanced.js"></script>
+    <script type="text/babel">
+      const { createRoot } = ReactDOM;
+
+      // Create root and render the enhanced app
+      const container = document.getElementById("root");
+      const root = createRoot(container);
+      root.render(<Dashboard />);
+
+      // Add enhanced error handling
+      window.addEventListener("error", (event) => {
+        console.error("Dashboard error:", event.error);
+      });
+
+      // Add enhanced performance monitoring
+      if ("performance" in window) {
+        window.addEventListener("load", () => {
+          const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+          console.log(`Dashboard loaded in ${loadTime}ms`);
+        });
+      }
+    </script>
+  </body>
+</html>

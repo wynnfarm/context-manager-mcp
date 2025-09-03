@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  # Redis for shared storage
+  redis:
+    image: redis:7-alpine
+    container_name: context-storage
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Context Manager Instance 1
+  context-manager-1:
+    build: .
+    container_name: context-manager-1
+    ports:
+      - "8001:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - STORAGE_TYPE=redis
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Context Manager Instance 2
+  context-manager-2:
+    build: .
+    container_name: context-manager-2
+    ports:
+      - "8002:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - STORAGE_TYPE=redis
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local

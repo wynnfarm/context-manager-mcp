@@ -1,0 +1,68 @@
+{
+  "project_name": "test-web-project",
+  "current_goal": "Build a responsive web application with modern UI/UX",
+  "completed_features": [],
+  "current_issues": [],
+  "next_steps": [
+    "Set up development environment and project structure",
+    "Design database schema and relationships",
+    "Implement user authentication system",
+    "Create responsive UI components",
+    "Develop API endpoints and business logic",
+    "Add error handling and validation",
+    "Implement testing suite",
+    "Deploy to production environment"
+  ],
+  "current_state": {
+    "template_used": "web-app",
+    "template_name": "Web Application",
+    "created_at": "2025-09-01T12:21:21.173016"
+  },
+  "key_files": [
+    "package.json",
+    "requirements.txt",
+    "docker-compose.yml",
+    "README.md",
+    ".env.example",
+    "src/",
+    "public/",
+    "tests/"
+  ],
+  "context_anchors": [
+    {
+      "key": "FRONTEND_FRAMEWORK",
+      "value": "React/Vue/Angular",
+      "description": "Frontend framework choice",
+      "priority": 1,
+      "created_at": "2025-09-01T12:21:21.173026"
+    },
+    {
+      "key": "BACKEND_FRAMEWORK",
+      "value": "Django/Flask/Express",
+      "description": "Backend framework choice",
+      "priority": 1,
+      "created_at": "2025-09-01T12:21:21.173028"
+    },
+    {
+      "key": "DATABASE",
+      "value": "PostgreSQL/MySQL/MongoDB",
+      "description": "Database system",
+      "priority": 1,
+      "created_at": "2025-09-01T12:21:21.173029"
+    },
+    {
+      "key": "DEPLOYMENT_PLATFORM",
+      "value": "AWS/Heroku/Vercel",
+      "description": "Deployment platform",
+      "priority": 2,
+      "created_at": "2025-09-01T12:21:21.173031"
+    },
+    {
+      "key": "API_VERSION",
+      "value": "v1",
+      "description": "API version",
+      "priority": 3,
+      "created_at": "2025-09-01T12:21:21.173032"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"id": "test-project", "name": "Test Project", "status": "active", "description": "Test project for dashboard", "created_at": "2025-09-02T06:30:00.000Z", "updated_at": "2025-09-02T06:30:00.000Z", "features": ["Dashboard UI", "API Integration", "Real-time Updates"], "current_goal": "Complete React dashboard implementation", "completed_features_count": 2, "pending_issues_count": 1}

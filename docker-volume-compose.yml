@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  # Context Manager Instance 1
+  context-manager-1:
+    build: .
+    container_name: context-manager-1
+    ports:
+      - "8001:8000"
+    volumes:
+      - context_data:/app/contexts # Named volume
+    environment:
+      - CONTEXT_STORAGE_PATH=/app/contexts
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  # Context Manager Instance 2
+  context-manager-2:
+    build: .
+    container_name: context-manager-2
+    ports:
+      - "8002:8000"
+    volumes:
+      - context_data:/app/contexts # Same named volume
+    environment:
+      - CONTEXT_STORAGE_PATH=/app/contexts
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+volumes:
+  context_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /tmp/context_data # Host path

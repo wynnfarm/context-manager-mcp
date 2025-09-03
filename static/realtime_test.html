@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real-time Context Manager Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      .panel {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .status {
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+      .connected {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .disconnected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .message {
+        background-color: #e9ecef;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 4px;
+        border-left: 4px solid #007bff;
+      }
+      .message.user-joined {
+        border-left-color: #28a745;
+      }
+      .message.user-left {
+        border-left-color: #dc3545;
+      }
+      .message.context-updated {
+        border-left-color: #ffc107;
+      }
+      .message.feature-completed {
+        border-left-color: #17a2b8;
+      }
+      .message.issue-resolved {
+        border-left-color: #6f42c1;
+      }
+      .message.goal-changed {
+        border-left-color: #fd7e14;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin: 10px 0;
+      }
+      button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #6c757d;
+        cursor: not-allowed;
+      }
+      input,
+      select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin: 10px 0;
+      }
+      .stat-card {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        text-align: center;
+      }
+      .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007bff;
+      }
+      .log {
+        max-height: 400px;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔌 Real-time Context Manager Test</h1>
+
+    <div class="container">
+      <!-- Connection Panel -->
+      <div class="panel">
+        <h2>🔗 Connection Management</h2>
+
+        <div class="controls">
+          <input type="text" id="projectName" placeholder="Project Name" value="test-project" />
+          <input type="text" id="userId" placeholder="User ID" value="user-1" />
+          <button onclick="connectToProject()" id="connectBtn">Connect to Project</button>
+          <button onclick="connectToGlobal()" id="connectGlobalBtn">Connect to Global</button>
+        </div>
+
+        <div class="controls">
+          <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+          <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div id="connectionStatus" class="status disconnected">Disconnected</div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-number" id="totalConnections">0</div>
+            <div>Total Connections</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="projectConnections">0</div>
+            <div>Project Connections</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="globalConnections">0</div>
+            <div>Global Connections</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages Panel -->
+      <div class="panel">
+        <h2>📨 Real-time Messages</h2>
+
+        <div class="controls">
+          <select id="messageType">
+            <option value="heartbeat">Heartbeat</option>
+            <option value="user_message">User Message</option>
+            <option value="context_update">Context Update</option>
+            <option value="feature_completed">Feature Completed</option>
+            <option value="issue_resolved">Issue Resolved</option>
+          </select>
+          <input type="text" id="messageContent" placeholder="Message content" />
+          <button onclick="sendMessage()" id="sendBtn" disabled>Send Message</button>
+        </div>
+
+        <div id="messages"></div>
+      </div>
+    </div>
+
+    <!-- Log Panel -->
+    <div class="panel" style="grid-column: 1 / -1; margin-top: 20px">
+      <h2>📋 Connection Log</h2>
+      <div id="log" class="log"></div>
+    </div>
+
+    <script>
+      let websocket = null;
+      let currentProject = null;
+      let currentUserId = null;
+      let isGlobalConnection = false;
+
+      // Update UI elements
+      function updateConnectionStatus(connected) {
+        const status = document.getElementById("connectionStatus");
+        const connectBtn = document.getElementById("connectBtn");
+        const connectGlobalBtn = document.getElementById("connectGlobalBtn");
+        const disconnectBtn = document.getElementById("disconnectBtn");
+        const sendBtn = document.getElementById("sendBtn");
+
+        if (connected) {
+          status.textContent = `Connected to ${isGlobalConnection ? "Global Updates" : currentProject}`;
+          status.className = "status connected";
+          connectBtn.disabled = true;
+          connectGlobalBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          sendBtn.disabled = false;
+        } else {
+          status.textContent = "Disconnected";
+          status.className = "status disconnected";
+          connectBtn.disabled = false;
+          connectGlobalBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          sendBtn.disabled = true;
+        }
+      }
+
+      // Add message to the messages panel
+      function addMessage(type, data) {
+        const messagesDiv = document.getElementById("messages");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${type.replace("_", "-")}`;
+
+        const timestamp = new Date().toLocaleTimeString();
+        let content = "";
+
+        switch (type) {
+          case "user_joined":
+            content = `👤 User ${data.user_id} joined at ${timestamp}`;
+            break;
+          case "user_left":
+            content = `👋 User ${data.user_id} left at ${timestamp}`;
+            break;
+          case "context_updated":
+            content = `📝 Context updated by ${data.user_id} at ${timestamp}`;
+            break;
+          case "feature_completed":
+            content = `✅ Feature "${data.feature}" completed by ${data.user_id} at ${timestamp}`;
+            break;
+          case "issue_resolved":
+            content = `🔧 Issue "${data.issue}" resolved by ${data.user_id} at ${timestamp}`;
+            break;
+          case "goal_changed":
+            content = `🎯 Goal changed by ${data.user_id} at ${timestamp}`;
+            break;
+          default:
+            content = `📨 ${type}: ${JSON.stringify(data)} at ${timestamp}`;
+        }
+
+        messageDiv.textContent = content;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      // Add log entry
+      function addLog(message) {
+        const logDiv = document.getElementById("log");
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement("div");
+        logEntry.textContent = `[${timestamp}] ${message}`;
+        logDiv.appendChild(logEntry);
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      // Update stats
+      async function updateStats() {
+        try {
+          const response = await fetch("/realtime/stats");
+          const data = await response.json();
+
+          if (data.success) {
+            document.getElementById("totalConnections").textContent = data.data.total_connections;
+            document.getElementById("projectConnections").textContent = Object.values(
+              data.data.project_connections,
+            ).reduce((sum, p) => sum + p.connection_count, 0);
+            document.getElementById("globalConnections").textContent = data.data.global_connections;
+          }
+        } catch (error) {
+          addLog(`Error updating stats: ${error.message}`);
+        }
+      }
+
+      // Connect to project-specific WebSocket
+      function connectToProject() {
+        const projectName = document.getElementById("projectName").value;
+        const userId = document.getElementById("userId").value;
+
+        if (!projectName || !userId) {
+          alert("Please enter both project name and user ID");
+          return;
+        }
+
+        const uri = `ws://localhost:8000/ws/context/${projectName}?user_id=${userId}`;
+        connectWebSocket(uri, projectName, userId, false);
+      }
+
+      // Connect to global WebSocket
+      function connectToGlobal() {
+        const userId = document.getElementById("userId").value;
+
+        if (!userId) {
+          alert("Please enter a user ID");
+          return;
+        }
+
+        const uri = `ws://localhost:8000/ws/updates?user_id=${userId}`;
+        connectWebSocket(uri, null, userId, true);
+      }
+
+      // Connect WebSocket
+      function connectWebSocket(uri, projectName, userId, isGlobal) {
+        try {
+          websocket = new WebSocket(uri);
+          currentProject = projectName;
+          currentUserId = userId;
+          isGlobalConnection = isGlobal;
+
+          websocket.onopen = function (event) {
+            addLog(`Connected to ${isGlobal ? "Global Updates" : projectName}`);
+            updateConnectionStatus(true);
+            updateStats();
+          };
+
+          websocket.onmessage = function (event) {
+            try {
+              const data = JSON.parse(event.data);
+              addLog(`Received: ${data.type}`);
+
+              if (data.type === "user_joined" && data.data) {
+                addMessage("user_joined", data.data);
+              } else if (data.type === "user_left" && data.data) {
+                addMessage("user_left", data.data);
+              } else if (data.type === "context_updated" && data.data) {
+                addMessage("context_updated", data.data);
+              } else if (data.type === "feature_completed" && data.data) {
+                addMessage("feature_completed", data.data);
+              } else if (data.type === "issue_resolved" && data.data) {
+                addMessage("issue_resolved", data.data);
+              } else if (data.type === "goal_changed" && data.data) {
+                addMessage("goal_changed", data.data);
+              } else {
+                addMessage(data.type, data.data || {});
+              }
+            } catch (error) {
+              addLog(`Error parsing message: ${error.message}`);
+            }
+          };
+
+          websocket.onclose = function (event) {
+            addLog(`Disconnected: ${event.code} - ${event.reason}`);
+            updateConnectionStatus(false);
+            websocket = null;
+            currentProject = null;
+            currentUserId = null;
+            isGlobalConnection = false;
+            updateStats();
+          };
+
+          websocket.onerror = function (error) {
+            addLog(`WebSocket error: ${error.message}`);
+          };
+        } catch (error) {
+          addLog(`Connection error: ${error.message}`);
+        }
+      }
+
+      // Disconnect WebSocket
+      function disconnect() {
+        if (websocket) {
+          websocket.close();
+        }
+      }
+
+      // Send message
+      function sendMessage() {
+        if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+          alert("Not connected to WebSocket");
+          return;
+        }
+
+        const messageType = document.getElementById("messageType").value;
+        const messageContent = document.getElementById("messageContent").value;
+
+        const message = {
+          type: messageType,
+          user_id: currentUserId,
+          content: messageContent,
+          timestamp: new Date().toISOString(),
+        };
+
+        websocket.send(JSON.stringify(message));
+        addLog(`Sent: ${messageType} - ${messageContent}`);
+        document.getElementById("messageContent").value = "";
+      }
+
+      // Clear log
+      function clearLog() {
+        document.getElementById("log").innerHTML = "";
+      }
+
+      // Update stats periodically
+      setInterval(updateStats, 5000);
+
+      // Initial stats update
+      updateStats();
+    </script>
+  </body>
+</html>

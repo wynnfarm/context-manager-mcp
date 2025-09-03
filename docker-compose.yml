@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  # Context Manager MCP Server
+  mcp-context-server:
+    build: .
+    container_name: mcp-context-server
+    image: mcp-context-server:latest
+    volumes:
+      # Mount contexts directory for persistence
+      - ./contexts:/app/contexts
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    # For MCP stdio communication, we don't expose ports
+    restart: unless-stopped
+    # Run in interactive mode for stdio communication
+    stdin_open: true
+    tty: true
+    # Use the working JSON-RPC server as the entrypoint
+    command: ["python", "context_manager_jsonrpc_server.py"]
+
+networks:
+  context-network:
+    driver: bridge

@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  # Shared Storage Service
+  context-storage:
+    image: redis:7-alpine
+    container_name: context-storage
+    ports:
+      - "6379:6379"
+    volumes:
+      - context_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Context Manager Instance 1
+  context-manager-1:
+    build: .
+    container_name: context-manager-1
+    ports:
+      - "8001:8000"
+    volumes:
+      - shared_contexts:/app/contexts
+    environment:
+      - CONTEXT_STORAGE_PATH=/app/contexts
+      - CONTEXT_PROJECT_NAME=default
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://context-storage:6379
+    depends_on:
+      - context-storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Context Manager Instance 2
+  context-manager-2:
+    build: .
+    container_name: context-manager-2
+    ports:
+      - "8002:8000"
+    volumes:
+      - shared_contexts:/app/contexts
+    environment:
+      - CONTEXT_STORAGE_PATH=/app/contexts
+      - CONTEXT_PROJECT_NAME=default
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://context-storage:6379
+    depends_on:
+      - context-storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Load Balancer
+  nginx-lb:
+    image: nginx:alpine
+    container_name: context-manager-lb
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - context-manager-1
+      - context-manager-2
+    restart: unless-stopped
+
+volumes:
+  shared_contexts:
+    driver: local
+  context_data:
