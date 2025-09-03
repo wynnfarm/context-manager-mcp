@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
-AWS Lambda Handler for MCP Server
+Secure AWS Lambda Handler for MCP Server
 
 This handler adapts the MCP server to work with AWS Lambda and API Gateway.
-It handles HTTP requests and converts them to/from the MCP protocol.
+It includes authentication, rate limiting, and security features.
 """
 
 import json
 import logging
 import os
 import sys
+import hashlib
+import time
 from pathlib import Path
 from typing import Dict, Any, Optional
+from datetime import datetime, timedelta
 
 # Configure logging
 logger = logging.getLogger()
@@ -29,17 +32,125 @@ except ImportError:
     from centralized_mcp_server import CentralizedMCPServer
 
 
-class LambdaMCPServer:
-    """Lambda-compatible MCP Server wrapper"""
+class SecureLambdaMCPServer:
+    """Secure Lambda-compatible MCP Server wrapper"""
     
     def __init__(self):
         self.server = CentralizedMCPServer()
-        logger.info("Lambda MCP Server initialized")
+        self.api_key = os.environ.get('API_KEY')
+        self.rate_limit_per_minute = int(os.environ.get('RATE_LIMIT_PER_MINUTE', 100))
+        self.rate_limit_cache = {}
+        logger.info("Secure Lambda MCP Server initialized")
+    
+    def authenticate_request(self, event: Dict[str, Any]) -> bool:
+        """Authenticate the request using API key"""
+        if not self.api_key:
+            logger.warning("No API key configured, skipping authentication")
+            return True
+        
+        headers = event.get('headers', {})
+        api_key = headers.get('X-API-Key') or headers.get('x-api-key')
+        
+        if not api_key:
+            logger.warning("No API key provided in request")
+            return False
+        
+        if api_key != self.api_key:
+            logger.warning("Invalid API key provided")
+            return False
+        
+        return True
+    
+    def check_rate_limit(self, client_ip: str) -> bool:
+        """Check if the client is within rate limits"""
+        current_time = time.time()
+        minute_ago = current_time - 60
+        
+        # Clean old entries
+        self.rate_limit_cache = {
+            ip: timestamps for ip, timestamps in self.rate_limit_cache.items()
+            if any(ts > minute_ago for ts in timestamps)
+        }
+        
+        # Get client's request timestamps
+        client_requests = self.rate_limit_cache.get(client_ip, [])
+        client_requests = [ts for ts in client_requests if ts > minute_ago]
+        
+        # Check if client is within limit
+        if len(client_requests) >= self.rate_limit_per_minute:
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            return False
+        
+        # Add current request
+        client_requests.append(current_time)
+        self.rate_limit_cache[client_ip] = client_requests
+        
+        return True
+    
+    def get_client_ip(self, event: Dict[str, Any]) -> str:
+        """Extract client IP from the event"""
+        headers = event.get('headers', {})
+        
+        # Try various headers for client IP
+        for header in ['X-Forwarded-For', 'X-Real-IP', 'X-Client-IP']:
+            if header in headers:
+                return headers[header].split(',')[0].strip()
+        
+        # Fallback to source IP
+        return event.get('requestContext', {}).get('identity', {}).get('sourceIp', 'unknown')
+    
+    def add_security_headers(self, response: Dict[str, Any]) -> Dict[str, Any]:
+        """Add security headers to the response"""
+        headers = response.get('headers', {})
+        
+        security_headers = {
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY',
+            'X-XSS-Protection': '1; mode=block',
+            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+            'Content-Security-Policy': "default-src 'self'",
+            'Referrer-Policy': 'strict-origin-when-cross-origin'
+        }
+        
+        headers.update(security_headers)
+        response['headers'] = headers
+        return response
     
     def handle_mcp_request(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle MCP protocol requests via HTTP"""
+        """Handle MCP protocol requests via HTTP with security checks"""
         
         try:
+            # Get client IP for rate limiting
+            client_ip = self.get_client_ip(event)
+            
+            # Check rate limit
+            if not self.check_rate_limit(client_ip):
+                return {
+                    'statusCode': 429,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    'body': json.dumps({
+                        'error': 'Rate limit exceeded',
+                        'message': 'Too many requests, please try again later'
+                    })
+                }
+            
+            # Authenticate request
+            if not self.authenticate_request(event):
+                return {
+                    'statusCode': 401,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    'body': json.dumps({
+                        'error': 'Unauthorized',
+                        'message': 'Invalid or missing API key'
+                    })
+                }
+            
             # Parse the request body
             body = event.get('body', '{}')
             if isinstance(body, str):
@@ -50,7 +161,7 @@ class LambdaMCPServer:
             params = body.get('params', {})
             id = body.get('id')
             
-            logger.info(f"Handling MCP request: {method}")
+            logger.info(f"Handling MCP request: {method} from IP: {client_ip}")
             
             # Route to appropriate handler
             if method == 'tools/list':
@@ -65,13 +176,13 @@ class LambdaMCPServer:
                     }
                 }
             
-            # Return JSON-RPC response
-            return {
+            # Return JSON-RPC response with security headers
+            response = {
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
+                    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
                     'Access-Control-Allow-Methods': 'POST, OPTIONS'
                 },
                 'body': json.dumps({
@@ -80,6 +191,8 @@ class LambdaMCPServer:
                     'result': result
                 })
             }
+            
+            return self.add_security_headers(response)
             
         except Exception as e:
             logger.error(f"Error handling MCP request: {e}")
@@ -354,13 +467,16 @@ class LambdaMCPServer:
             return json.dumps(tools_list, indent=2)
         
         elif tool_name == 'server_status':
-            from datetime import datetime
             status = {
-                'server': 'Lambda MCP Server',
+                'server': 'Secure Lambda MCP Server',
                 'status': 'running',
                 'active_projects': list(self.server.context_managers.keys()),
                 'timestamp': datetime.now().isoformat(),
-                'environment': os.environ.get('ENVIRONMENT', 'unknown')
+                'environment': os.environ.get('ENVIRONMENT', 'unknown'),
+                'security': {
+                    'authentication': 'enabled' if self.api_key else 'disabled',
+                    'rate_limiting': f'{self.rate_limit_per_minute} requests/minute'
+                }
             }
             return json.dumps(status, indent=2)
         
@@ -369,11 +485,11 @@ class LambdaMCPServer:
 
 
 # Global instance for Lambda
-mcp_server = LambdaMCPServer()
+mcp_server = SecureLambdaMCPServer()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """AWS Lambda handler function"""
+    """AWS Lambda handler function with security features"""
     
     # Handle CORS preflight requests
     if event.get('httpMethod') == 'OPTIONS':
@@ -381,7 +497,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
                 'Access-Control-Allow-Methods': 'POST, OPTIONS'
             },
             'body': ''
