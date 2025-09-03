@@ -37,7 +37,7 @@ if ! command -v terraform &> /dev/null; then
 fi
 
 # Check AWS credentials
-if ! aws sts get-caller-identity &> /dev/null; then
+if ! aws sts get-caller-identity --output text &> /dev/null; then
     echo -e "${RED}❌ AWS credentials not configured. Please run 'aws configure' first.${NC}"
     exit 1
 fi
