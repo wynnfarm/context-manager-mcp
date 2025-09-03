@@ -1,0 +1,30 @@
+# Centralized MCP Server Dockerfile
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create directories for data persistence
+RUN mkdir -p /app/data/contexts /app/data/personas
+
+# Expose port for HTTP server (optional)
+EXPOSE 8000
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV MCP_SERVER_MODE=production
+
+# Run the centralized MCP server
+CMD ["python", "run_centralized_mcp.py"]
