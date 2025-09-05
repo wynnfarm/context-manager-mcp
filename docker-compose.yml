@@ -9,16 +9,19 @@ services:
     volumes:
       # Mount contexts directory for persistence
       - ./contexts:/app/contexts
+      # Mount the MCP wrapper script for easy access
+      - ./run_context_mcp.py:/app/run_context_mcp.py
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
+      - CONTEXT_STORAGE_PATH=/app/contexts
     # For MCP stdio communication, we don't expose ports
     restart: unless-stopped
     # Run in interactive mode for stdio communication
     stdin_open: true
     tty: true
-    # Use the working JSON-RPC server as the entrypoint
-    command: ["python", "context_manager_jsonrpc_server.py"]
+    # Use the MCP server wrapper as the entrypoint
+    command: ["python", "run_context_mcp.py"]
 
 networks:
   context-network:

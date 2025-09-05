@@ -33,8 +33,5 @@ RUN useradd --create-home --shell /bin/bash context_user && \
 # Switch to non-root user
 USER context_user
 
-# Expose port for REST API
-EXPOSE 8000
-
-# Set the default command to run the working JSON-RPC server
-CMD ["python", "context_manager_jsonrpc_server.py"]
+# Set the default command to run the MCP server
+CMD ["python", "run_context_mcp.py"]
